@@ -8,7 +8,6 @@ HEADERS += \
     $$PWD/connection.h \
     $$PWD/room.h \
     $$PWD/user.h \
-    $$PWD/logmessage.h \
     $$PWD/state.h \
     $$PWD/events/event.h \
     $$PWD/events/roommessageevent.h \
@@ -27,7 +26,6 @@ HEADERS += \
     $$PWD/jobs/postreceiptjob.h \
     $$PWD/jobs/joinroomjob.h \
     $$PWD/jobs/leaveroomjob.h \
-    $$PWD/jobs/roommembersjob.h \
     $$PWD/jobs/roommessagesjob.h \
     $$PWD/jobs/syncjob.h \
     $$PWD/jobs/mediathumbnailjob.h \
@@ -38,7 +36,6 @@ SOURCES += \
     $$PWD/connection.cpp \
     $$PWD/room.cpp \
     $$PWD/user.cpp \
-    $$PWD/logmessage.cpp \
     $$PWD/state.cpp \
     $$PWD/events/event.cpp \
     $$PWD/events/roommessageevent.cpp \
@@ -57,7 +54,6 @@ SOURCES += \
     $$PWD/jobs/postreceiptjob.cpp \
     $$PWD/jobs/joinroomjob.cpp \
     $$PWD/jobs/leaveroomjob.cpp \
-    $$PWD/jobs/roommembersjob.cpp \
     $$PWD/jobs/roommessagesjob.cpp \
     $$PWD/jobs/syncjob.cpp \
     $$PWD/jobs/mediathumbnailjob.cpp \

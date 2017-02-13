@@ -23,6 +23,7 @@
 #include <QtCore/QStringBuilder> // for efficient string concats (operator%)
 #include <QtCore/QDebug>
 #include <algorithm>
+#include <array>
 
 #include "connection.h"
 #include "state.h"
