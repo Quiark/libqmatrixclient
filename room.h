@@ -54,6 +54,7 @@ namespace QMatrixClient
             QList<User*> membersLeft() const;
 
             Q_INVOKABLE QList<User*> users() const;
+			Q_INVOKABLE QStringList usernames() const;
 
             /**
              * @brief Produces a disambiguated name for a given user in
