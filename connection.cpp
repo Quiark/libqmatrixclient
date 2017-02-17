@@ -166,7 +166,7 @@ void Connection::sync(int timeout)
     if (d->syncJob)
         return;
 
-    const QString filter = "{\"room\": { \"timeline\": { \"limit\": 100 } } }";
+	const QString filter = "{\"room\": { \"timeline\": { \"limit\": 10 } } }";
     auto job = d->startSyncJob(filter, timeout);
     connect( job, &SyncJob::success, [=] () {
         d->data->setLastEvent(job->nextBatch());
