@@ -214,7 +214,7 @@ Room::Private::promoteReadMarker(User* u, QString eventId)
     // Try to auto-promote the read marker over the user's own messages.
     auto eagerMarker = find_if(newMarker.base(), timeline.cend(),
                  [=](Event* e) { return e->senderId() != u->id(); });
-    if (eagerMarker > timeline.begin())
+	if ((eagerMarker != timeline.end()) && (eagerMarker > timeline.begin()))
         q->setLastReadEvent(u, *(eagerMarker - 1));
 
     if (u == connection->user() && unreadMessages)
