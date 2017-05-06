@@ -17,8 +17,8 @@
  */
 
 #include "postmessagejob.h"
-#include "../room.h"
 #include "../connectiondata.h"
+#include "util.h"
 
 #include <QtNetwork/QNetworkReply>
 
@@ -32,11 +32,24 @@ class PostMessageJob::Private
         QString eventId; // unused yet
 };
 
-PostMessageJob::PostMessageJob(ConnectionData* connection, Room* room, QString type, QString message)
-    : BaseJob(connection, JobHttpType::PostJob, "PostMessageJob",
-              QString("_matrix/client/r0/rooms/%1/send/m.room.message").arg(room->id()),
+PostMessageJob::PostMessageJob(ConnectionData* connection, const QString& roomId,
+                               const QString& type, const QString& plainText)
+    : BaseJob(connection, HttpVerb::Post, "PostMessageJob",
+              QString("_matrix/client/r0/rooms/%1/send/m.room.message").arg(roomId),
               Query(),
-              Data({ { "msgtype", type }, { "body", message } }))
+              Data({ { "msgtype", type }, { "body", plainText } }) )
+    , d(new Private)
+{ }
+
+PostMessageJob::PostMessageJob(ConnectionData* connection, const QString& roomId,
+                               const QString& type, const QString& plainText,
+                               const QString& richText)
+    : BaseJob(connection, HttpVerb::Post, "PostMessageJob",
+              QStringLiteral("_matrix/client/r0/rooms/%1/send/m.room.message").arg(roomId),
+              Query(),
+              Data({ { "msgtype", type }, { "body", plainText }
+                   , { "format", QStringLiteral("org.matrix.custom.html") }
+                   , { "formatted_body", richText } }) )
     , d(new Private)
 { }
 
@@ -50,6 +63,6 @@ BaseJob::Status PostMessageJob::parseJson(const QJsonDocument& data)
     if( data.object().contains("event_id") )
         return Success;
 
-    qDebug() << data;
+    qCDebug(JOBS) << data;
     return { UserDefinedError, "No event_id in the JSON response" };
 }

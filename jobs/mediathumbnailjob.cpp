@@ -17,6 +17,7 @@
  */
 
 #include "mediathumbnailjob.h"
+#include "util.h"
 
 #include <QtCore/QDebug>
 
@@ -30,7 +31,7 @@ class MediaThumbnailJob::Private
 
 MediaThumbnailJob::MediaThumbnailJob(ConnectionData* data, QUrl url, QSize requestedSize,
                                      ThumbnailType thumbnailType)
-    : BaseJob(data, JobHttpType::GetJob, "MediaThumbnailJob",
+    : BaseJob(data, HttpVerb::Get, "MediaThumbnailJob",
               QString("/_matrix/media/v1/thumbnail/%1%2").arg(url.host(), url.path()),
               Query(
                 { { "width", QString::number(requestedSize.width()) }
@@ -55,7 +56,7 @@ BaseJob::Status MediaThumbnailJob::parseReply(QByteArray data)
 {
     if( !d->thumbnail.loadFromData(data) )
     {
-        qDebug() << "MediaThumbnailJob: could not read image data";
+        qCDebug(JOBS) << "MediaThumbnailJob: could not read image data";
     }
     return Success;
 }

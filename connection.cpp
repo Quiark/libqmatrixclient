@@ -58,8 +58,6 @@ class Connection::Private
         QString userId;
 
         SyncJob* syncJob;
-
-        SyncJob* startSyncJob(const QString& filter, int timeout);
 };
 
 Connection::Connection(QUrl server, QObject* parent)
@@ -76,7 +74,7 @@ Connection::Connection()
 
 Connection::~Connection()
 {
-    qDebug() << "deconstructing connection object for" << d->userId;
+    qCDebug(MAIN) << "deconstructing connection object for" << d->userId;
     delete d;
 }
 
@@ -123,10 +121,10 @@ void Connection::connectWithToken(QString userId, QString token)
     d->isConnected = true;
     d->userId = userId;
     d->data->setToken(token);
-    qDebug() << "Accessing" << d->data->baseUrl()
+    qCDebug(MAIN) << "Accessing" << d->data->baseUrl()
              << "by user" << userId
              << "with the following access token:";
-    qDebug() << token;
+    qCDebug(MAIN) << token;
     emit connected();
 }
 
@@ -146,19 +144,17 @@ void Connection::reconnect()
 
 void Connection::disconnectFromServer()
 {
-    if (d->syncJob)
-    {
-        d->syncJob->abandon();
-        d->syncJob = nullptr;
-    }
+    stopSync();
     d->isConnected = false;
 }
 
 void Connection::logout()
 {
-    auto job = new LogoutJob(d->data);
-    connect( job, &LogoutJob::success, this, &Connection::loggedOut);
-    job->start();
+    auto job = callApi<LogoutJob>();
+    connect( job, &LogoutJob::success, [=] {
+        stopSync();
+        emit loggedOut();
+    });
 }
 
 void Connection::sync(int timeout)
@@ -167,7 +163,8 @@ void Connection::sync(int timeout)
         return;
 
 	const QString filter = "{\"room\": { \"timeline\": { \"limit\": 10 } } }";
-    auto job = d->startSyncJob(filter, timeout);
+    auto job = d->syncJob =
+            callApi<SyncJob>(d->data->lastEvent(), filter, timeout);
     connect( job, &SyncJob::success, [=] () {
         d->data->setLastEvent(job->nextBatch());
         for( auto& roomData: job->roomData() )
@@ -178,26 +175,28 @@ void Connection::sync(int timeout)
         d->syncJob = nullptr;
         emit syncDone();
     });
+    connect( job, &SyncJob::retryScheduled, this, &Connection::networkError);
     connect( job, &SyncJob::failure, [=] () {
         d->syncJob = nullptr;
         if (job->error() == BaseJob::ContentAccessError)
             emit loginError(job->errorString());
         else
-            emit connectionError(job->errorString());
+            emit syncError(job->errorString());
     });
 }
 
-SyncJob* Connection::Private::startSyncJob(const QString& filter, int timeout)
+void Connection::stopSync()
 {
-    syncJob = new SyncJob(data, data->lastEvent(), filter, timeout);
-    syncJob->start();
-    return syncJob;
-
+    if (d->syncJob)
+    {
+        d->syncJob->abandon();
+        d->syncJob = nullptr;
+    }
 }
 
 void Connection::postMessage(Room* room, QString type, QString message)
 {
-    PostMessageJob* job = new PostMessageJob(d->data, room, type, message);
+    PostMessageJob* job = new PostMessageJob(d->data, room->id(), type, message);
     job->start();
 }
 
@@ -208,14 +207,14 @@ PostReceiptJob* Connection::postReceipt(Room* room, Event* event)
     return job;
 }
 
-void Connection::joinRoom(QString roomAlias)
+JoinRoomJob* Connection::joinRoom(QString roomAlias)
 {
-    JoinRoomJob* job = new JoinRoomJob(d->data, roomAlias);
+    auto job = callApi<JoinRoomJob>(roomAlias);
     connect( job, &BaseJob::success, [=] () {
         if ( Room* r = provideRoom(job->roomId()) )
             emit joinedRoom(r);
     });
-    job->start();
+    return job;
 }
 
 void Connection::leaveRoom(Room* room)
@@ -226,7 +225,7 @@ void Connection::leaveRoom(Room* room)
 
 RoomMessagesJob* Connection::getMessages(Room* room, QString from)
 {
-    RoomMessagesJob* job = new RoomMessagesJob(d->data, room, from);
+    RoomMessagesJob* job = new RoomMessagesJob(d->data, room->id(), from);
     job->start();
     return job;
 }
@@ -279,6 +278,16 @@ QString Connection::accessToken() const
     return d->data->accessToken();
 }
 
+SyncJob* Connection::syncJob() const
+{
+    return d->syncJob;
+}
+
+int Connection::millisToReconnect() const
+{
+    return d->syncJob ? d->syncJob->millisToRetry() : 0;
+}
+
 QHash< QString, Room* > Connection::roomMap() const
 {
     return d->roomMap;
@@ -298,7 +307,7 @@ Room* Connection::provideRoom(QString id)
 {
     if (id.isEmpty())
     {
-        qDebug() << "Connection::provideRoom() with empty id, doing nothing";
+        qCDebug(MAIN) << "Connection::provideRoom() with empty id, doing nothing";
         return nullptr;
     }
 

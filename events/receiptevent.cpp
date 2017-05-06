@@ -34,6 +34,7 @@ Example of a Receipt Event:
 */
 
 #include "receiptevent.h"
+#include "util.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QDebug>
@@ -43,7 +44,7 @@ using namespace QMatrixClient;
 class ReceiptEvent::Private
 {
     public:
-        QHash<QString, Receipts> eventToReceipts;
+        EventsToReceipts eventsToReceipts;
 };
 
 ReceiptEvent::ReceiptEvent()
@@ -57,14 +58,9 @@ ReceiptEvent::~ReceiptEvent()
     delete d;
 }
 
-Receipts ReceiptEvent::receiptsForEvent(QString eventId) const
+EventsToReceipts ReceiptEvent::events() const
 {
-    return d->eventToReceipts.value(eventId);
-}
-
-QStringList ReceiptEvent::events() const
-{
-    return d->eventToReceipts.keys();
+    return d->eventsToReceipts;
 }
 
 ReceiptEvent* ReceiptEvent::fromJson(const QJsonObject& obj)
@@ -72,18 +68,25 @@ ReceiptEvent* ReceiptEvent::fromJson(const QJsonObject& obj)
     ReceiptEvent* e = new ReceiptEvent();
     e->parseJson(obj);
     const QJsonObject contents = obj["content"].toObject();
-    e->d->eventToReceipts.reserve(contents.size());
-    for( const QString& eventId: contents.keys() )
+    e->d->eventsToReceipts.reserve(contents.size());
+    for( auto eventIt = contents.begin(); eventIt != contents.end(); ++eventIt )
     {
-        const QJsonObject reads = contents[eventId].toObject().value("m.read").toObject();
-        Receipts receipts(reads.size());
-        for( const QString& userId: reads.keys() )
+        if (eventIt.key().isEmpty())
         {
-            const QJsonObject user = reads[userId].toObject();
-            const QDateTime time = QDateTime::fromMSecsSinceEpoch( (quint64) user["ts"].toDouble(), Qt::UTC );
-            receipts.push_back({ userId, time });
+            qCWarning(EVENTS) << "ReceiptEvent has an empty event id, skipping";
+            qCDebug(EVENTS) << "ReceiptEvent content follows:\n" << contents;
+            continue;
         }
-        e->d->eventToReceipts.insert(eventId, receipts);
+        const QJsonObject reads = eventIt.value().toObject().value("m.read").toObject();
+        Receipts receipts; receipts.reserve(reads.size());
+        for( auto userIt = reads.begin(); userIt != reads.end(); ++userIt )
+        {
+            const QJsonObject user = userIt.value().toObject();
+            const auto time = QDateTime::fromMSecsSinceEpoch(
+                        static_cast<qint64>(user["ts"].toDouble()), Qt::UTC );
+            receipts.push_back({ userIt.key(), time });
+        }
+        e->d->eventsToReceipts.push_back({ eventIt.key(), receipts });
     }
     return e;
 }

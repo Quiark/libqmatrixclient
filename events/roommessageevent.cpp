@@ -17,6 +17,7 @@
  */
 
 #include "roommessageevent.h"
+#include "util.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtCore/QDebug>
@@ -96,8 +97,8 @@ ContentPair makeVideo(const QJsonObject& json)
 
 ContentPair makeUnknown(const QJsonObject& json)
 {
-    qDebug() << "RoomMessageEvent: couldn't resolve msgtype, JSON follows:";
-    qDebug() << json;
+    qCDebug(EVENTS) << "RoomMessageEvent: couldn't resolve msgtype, JSON follows:";
+    qCDebug(EVENTS) << json;
     return { MessageEventType::Unknown, new Base };
 }
 
@@ -109,7 +110,7 @@ RoomMessageEvent* RoomMessageEvent::fromJson(const QJsonObject& obj)
     {
         e->d->userId = obj.value("sender").toString();
     } else {
-        qDebug() << "RoomMessageEvent: user_id not found";
+        qCDebug(EVENTS) << "RoomMessageEvent: user_id not found";
     }
     if( obj.contains("content") )
     {
@@ -134,8 +135,8 @@ RoomMessageEvent* RoomMessageEvent::fromJson(const QJsonObject& obj)
         }
         else
         {
-            qWarning() << "RoomMessageEvent(" << e->id() << "): no body or msgtype";
-            qDebug() << obj;
+            qCWarning(EVENTS) << "RoomMessageEvent(" << e->id() << "): no body or msgtype";
+            qCDebug(EVENTS) << obj;
         }
     }
     return e;
@@ -154,9 +155,10 @@ TextContent::TextContent(const QJsonObject& json)
         mimeType = db.mimeTypeForName("text/html");
         body = json["formatted_body"].toString();
     } else {
-        // Best-guessing from the content
+        // Falling back to plain text, as there's no standard way to describe
+        // rich text in messages.
         body = json["body"].toString();
-        mimeType = db.mimeTypeForData(body.toUtf8());
+        mimeType = db.mimeTypeForName("text/plain");
     }
 }
 

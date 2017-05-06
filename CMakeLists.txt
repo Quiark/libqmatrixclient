@@ -47,6 +47,7 @@ message( STATUS )
 set(libqmatrixclient_SRCS
    connectiondata.cpp
    connection.cpp
+   debug.cpp
    room.cpp
    user.cpp
    state.cpp
@@ -74,8 +75,18 @@ set(libqmatrixclient_SRCS
    jobs/logoutjob.cpp
     )
 
+set(example_SRCS examples/qmc-example.cpp)
+
 add_library(qmatrixclient ${libqmatrixclient_SRCS})
 set_property(TARGET qmatrixclient PROPERTY VERSION "0.0.0")
 set_property(TARGET qmatrixclient PROPERTY SOVERSION 0 )
 
 target_link_libraries(qmatrixclient Qt5::Core Qt5::Network Qt5::Gui)
+
+add_executable(qmc-example ${example_SRCS})
+target_link_libraries(qmc-example Qt5::Core qmatrixclient)
+
+if (WIN32)
+    install (FILES mime/packages/freedesktop.org.xml
+             DESTINATION mime/packages)
+endif (WIN32)

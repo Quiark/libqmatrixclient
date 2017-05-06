@@ -17,6 +17,7 @@
  */
 
 #include "joinroomjob.h"
+#include "util.h"
 
 #include <QtNetwork/QNetworkReply>
 
@@ -31,7 +32,7 @@ class JoinRoomJob::Private
 };
 
 JoinRoomJob::JoinRoomJob(ConnectionData* data, QString roomAlias)
-    : BaseJob(data, JobHttpType::PostJob, "JoinRoomJob",
+    : BaseJob(data, HttpVerb::Post, "JoinRoomJob",
               QString("_matrix/client/r0/join/%1").arg(roomAlias))
     , d(new Private)
 {
@@ -56,6 +57,6 @@ BaseJob::Status JoinRoomJob::parseJson(const QJsonDocument& data)
         return Success;
     }
 
-    qDebug() << data;
+    qCDebug(JOBS) << data;
     return { UserDefinedError, "No room_id in the JSON response" };
 }

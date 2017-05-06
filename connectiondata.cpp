@@ -17,7 +17,9 @@
  */
 
 #include "connectiondata.h"
+#include "util.h"
 
+#include <QtCore/QDebug>
 #include <QtNetwork/QNetworkAccessManager>
 
 using namespace QMatrixClient;
@@ -69,13 +71,13 @@ void ConnectionData::setToken(QString token)
 void ConnectionData::setHost(QString host)
 {
     d->baseUrl.setHost(host);
-    qDebug() << "updated baseUrl to" << d->baseUrl;
+    qCDebug(MAIN) << "updated baseUrl to" << d->baseUrl;
 }
 
 void ConnectionData::setPort(int port)
 {
     d->baseUrl.setPort(port);
-    qDebug() << "updated baseUrl to" << d->baseUrl;
+    qCDebug(MAIN) << "updated baseUrl to" << d->baseUrl;
 }
 
 QString ConnectionData::lastEvent() const

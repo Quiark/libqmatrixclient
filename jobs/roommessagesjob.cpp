@@ -17,7 +17,7 @@
  */
 
 #include "roommessagesjob.h"
-#include "../room.h"
+#include "../util.h"
 
 #include <QtCore/QJsonArray>
 
@@ -28,20 +28,22 @@ class RoomMessagesJob::Private
     public:
         Private() {}
 
-        Events events;
+        Owning<Events> events;
         QString end;
 };
 
-RoomMessagesJob::RoomMessagesJob(ConnectionData* data, Room* room, QString from, FetchDirectory dir, int limit)
-    : BaseJob(data, JobHttpType::GetJob, "RoomMessagesJob",
-              QString("/_matrix/client/r0/rooms/%1/messages").arg(room->id()),
+RoomMessagesJob::RoomMessagesJob(ConnectionData* data, QString roomId,
+                                 QString from, int limit, FetchDirection dir)
+    : BaseJob(data, HttpVerb::Get, "RoomMessagesJob",
+              QString("/_matrix/client/r0/rooms/%1/messages").arg(roomId),
               Query(
                 { { "from", from }
-                , { "dir", dir == FetchDirectory::Backwards ? "b" : "f" }
+                , { "dir", dir == FetchDirection::Backward ? "b" : "f" }
                 , { "limit", QString::number(limit) }
                 }))
     , d(new Private)
 {
+    qCDebug(JOBS) << "Room messages query:" << query().toString(QUrl::PrettyDecoded);
 }
 
 RoomMessagesJob::~RoomMessagesJob()
@@ -49,9 +51,9 @@ RoomMessagesJob::~RoomMessagesJob()
     delete d;
 }
 
-Events RoomMessagesJob::events()
+Events RoomMessagesJob::releaseEvents()
 {
-    return d->events;
+    return d->events.release();
 }
 
 QString RoomMessagesJob::end()
@@ -62,7 +64,7 @@ QString RoomMessagesJob::end()
 BaseJob::Status RoomMessagesJob::parseJson(const QJsonDocument& data)
 {
     QJsonObject obj = data.object();
-    d->events = eventsFromJson(obj.value("chunk").toArray());
+    d->events.assign(eventsFromJson(obj.value("chunk").toArray()));
     d->end = obj.value("end").toString();
     return Success;
 }

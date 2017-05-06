@@ -18,6 +18,9 @@
 
 #pragma once
 
+#include <memory>
+#include <deque>
+
 #include <QtCore/QList>
 #include <QtCore/QStringList>
 #include <QtCore/QObject>
@@ -26,8 +29,6 @@
 #include "jobs/syncjob.h"
 #include "joinstate.h"
 
-#include <deque>
-
 namespace QMatrixClient
 {
     class Event;
@@ -35,23 +36,53 @@ namespace QMatrixClient
     class User;
     class MemberSorter;
 
+    class TimelineItem
+    {
+        public:
+            // For compatibility with Qt containers, even though we use
+            // a std:: container now
+            using index_t = int;
+
+            TimelineItem(Event* e, index_t number) : evt(e), idx(number) { }
+
+            Event* event() const { return evt.get(); }
+            Event* operator->() const { return event(); } //< Synonym for event()
+            index_t index() const { return idx; }
+
+        private:
+            std::unique_ptr<Event> evt;
+            index_t idx;
+    };
+    inline QDebug& operator<<(QDebug& d, const TimelineItem& ti)
+    {
+        QDebugStateSaver dss(d);
+        d.nospace() << "(" << ti.index() << "|" << ti->id() << ")";
+        return d;
+    }
+
     class Room: public QObject
     {
             Q_OBJECT
-            Q_PROPERTY(QString readMarkerEventId READ readMarkerEventId WRITE markMessagesAsRead NOTIFY readMarkerPromoted)
+            Q_PROPERTY(QString readMarkerEventId READ readMarkerEventId WRITE markMessagesAsRead NOTIFY readMarkerMoved)
+            Q_PROPERTY(QString id READ id CONSTANT)
+            Q_PROPERTY(QString name READ name NOTIFY namesChanged)
+            Q_PROPERTY(QStringList aliases READ aliases NOTIFY namesChanged)
+            Q_PROPERTY(QString canonicalAlias READ canonicalAlias NOTIFY namesChanged)
+            Q_PROPERTY(QString displayName READ displayName NOTIFY namesChanged)
+            Q_PROPERTY(QString topic READ topic NOTIFY topicChanged)
         public:
-            using Timeline = Owning< std::deque<Event*> >;
+            using Timeline = std::deque<TimelineItem>;
+            using rev_iter_t = Timeline::const_reverse_iterator;
 
             Room(Connection* connection, QString id);
             virtual ~Room();
 
-            Q_INVOKABLE QString id() const;
-            Q_INVOKABLE const Timeline& messageEvents() const;
-            Q_INVOKABLE QString name() const;
-            Q_INVOKABLE QStringList aliases() const;
-            Q_INVOKABLE QString canonicalAlias() const;
-            Q_INVOKABLE QString displayName() const;
-            Q_INVOKABLE QString topic() const;
+            QString id() const;
+            QString name() const;
+            QStringList aliases() const;
+            QString canonicalAlias() const;
+            QString displayName() const;
+            QString topic() const;
             Q_INVOKABLE JoinState joinState() const;
             Q_INVOKABLE QList<User*> usersTyping() const;
             QList<User*> membersLeft() const;
@@ -73,6 +104,21 @@ namespace QMatrixClient
             Q_INVOKABLE void updateData(SyncRoomData& data );
             Q_INVOKABLE void setJoinState( JoinState state );
 
+            const Timeline& messageEvents() const;
+            /**
+             * A convenience method returning the read marker to the before-oldest
+             * message
+             */
+            rev_iter_t timelineEdge() const;
+            Q_INVOKABLE TimelineItem::index_t minTimelineIndex() const;
+            Q_INVOKABLE TimelineItem::index_t maxTimelineIndex() const;
+            Q_INVOKABLE bool isValidIndex(TimelineItem::index_t timelineIndex) const;
+
+            rev_iter_t findInTimeline(TimelineItem::index_t index) const;
+            rev_iter_t findInTimeline(QString evtId) const;
+
+            rev_iter_t readMarker(const User* user) const;
+            rev_iter_t readMarker() const;
             QString readMarkerEventId() const;
             /**
              * @brief Mark the event with uptoEventId as read
@@ -80,10 +126,11 @@ namespace QMatrixClient
              * Finds in the timeline and marks as read the event with
              * the specified id; also posts a read receipt to the server either
              * for this message or, if it's from the local user, for
-             * the nearest non-local message before. If the event id is empty,
-             * marks the whole timeline as read.
+             * the nearest non-local message before. uptoEventId must be non-empty.
              */
-            Q_INVOKABLE void markMessagesAsRead(QString uptoEventId = {});
+            void markMessagesAsRead(QString uptoEventId);
+            /** Mark all messages in the room as read */
+            void markAllMessagesAsRead();
 
             Q_INVOKABLE bool hasUnreadMessages();
 
@@ -95,7 +142,10 @@ namespace QMatrixClient
             MemberSorter memberSorter() const;
 
         public slots:
-            void getPreviousContent();
+            void postMessage(const QString& type, const QString& plainText);
+            void postMessage(const QString& type, const QString& plainText,
+                             const QString& richText);
+            void getPreviousContent(int limit = 10);
             void userRenamed(User* user, QString oldName);
 
         signals:
@@ -120,7 +170,7 @@ namespace QMatrixClient
             void highlightCountChanged(Room* room);
             void notificationCountChanged(Room* room);
             void lastReadEventChanged(User* user);
-            void readMarkerPromoted();
+            void readMarkerMoved();
             void unreadMessagesChanged(Room* room);
 
         protected:
@@ -134,10 +184,10 @@ namespace QMatrixClient
             class Private;
             Private* d;
 
-            void addNewMessageEvents(const Events& events);
-            void addHistoricalMessageEvents(const Events& events);
+            void addNewMessageEvents(Events events);
+            void addHistoricalMessageEvents(Events events);
 
-            void setLastReadEvent(User* user, Event* event);
+            void markMessagesAsRead(rev_iter_t upToMarker);
     };
 
     class MemberSorter

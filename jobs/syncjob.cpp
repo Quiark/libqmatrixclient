@@ -21,8 +21,6 @@
 #include <QtCore/QJsonArray>
 #include <QtCore/QDebug>
 
-#include "../connectiondata.h"
-
 using namespace QMatrixClient;
 
 class SyncJob::Private
@@ -36,7 +34,7 @@ static size_t jobId = 0;
 
 SyncJob::SyncJob(ConnectionData* connection,
                  QString since, QString filter, int timeout, QString presence)
-    : BaseJob(connection, JobHttpType::GetJob, QString("SyncJob-%1").arg(++jobId),
+    : BaseJob(connection, HttpVerb::Get, QString("SyncJob-%1").arg(++jobId),
               "_matrix/client/r0/sync")
     , d(new Private)
 {
@@ -50,6 +48,8 @@ SyncJob::SyncJob(ConnectionData* connection,
     if( !since.isEmpty() )
         query.addQueryItem("since", since);
     setRequestQuery(query);
+
+    setMaxRetries(std::numeric_limits<int>::max());
 }
 
 SyncJob::~SyncJob()
@@ -96,8 +96,7 @@ BaseJob::Status SyncJob::parseJson(const QJsonDocument& data)
 
 void SyncRoomData::EventList::fromJson(const QJsonObject& roomContents)
 {
-    auto l = eventsFromJson(roomContents[jsonKey].toObject()["events"].toArray());
-    swap(l);
+    assign(eventsFromJson(roomContents[jsonKey].toObject()["events"].toArray()));
 }
 
 SyncRoomData::SyncRoomData(QString roomId_, JoinState joinState_, const QJsonObject& room_)
@@ -124,7 +123,7 @@ SyncRoomData::SyncRoomData(QString roomId_, JoinState joinState_, const QJsonObj
             timeline.fromJson(room_);
             break;
     default:
-        qWarning() << "SyncRoomData: Unknown JoinState value, ignoring:" << int(joinState);
+        qCWarning(JOBS) << "SyncRoomData: Unknown JoinState value, ignoring:" << int(joinState);
     }
 
     QJsonObject timeline = room_.value("timeline").toObject();
@@ -134,5 +133,5 @@ SyncRoomData::SyncRoomData(QString roomId_, JoinState joinState_, const QJsonObj
     QJsonObject unread = room_.value("unread_notifications").toObject();
     highlightCount = unread.value("highlight_count").toInt();
     notificationCount = unread.value("notification_count").toInt();
-    qDebug() << "Highlights: " << highlightCount << " Notifications:" << notificationCount;
+    qCDebug(JOBS) << "Highlights: " << highlightCount << " Notifications:" << notificationCount;
 }
