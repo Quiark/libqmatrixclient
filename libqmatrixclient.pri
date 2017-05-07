@@ -29,7 +29,8 @@ HEADERS += \
     $$PWD/jobs/roommessagesjob.h \
     $$PWD/jobs/syncjob.h \
     $$PWD/jobs/mediathumbnailjob.h \
-    $$PWD/jobs/logoutjob.h
+    $$PWD/jobs/logoutjob.h \
+    $$PWD/settings.h
 
 SOURCES += \
     $$PWD/connectiondata.cpp \
@@ -57,4 +58,6 @@ SOURCES += \
     $$PWD/jobs/roommessagesjob.cpp \
     $$PWD/jobs/syncjob.cpp \
     $$PWD/jobs/mediathumbnailjob.cpp \
-    $$PWD/jobs/logoutjob.cpp
+    $$PWD/jobs/logoutjob.cpp \
+    $$PWD/debug.cpp \
+    $$PWD/settings.cpp

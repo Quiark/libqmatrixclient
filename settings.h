@@ -20,6 +20,7 @@
 
 #include <QtCore/QSettings>
 #include <QtCore/QVector>
+#include <QUrl>
 
 class QVariant;
 class QUrl;
@@ -28,6 +29,7 @@ namespace QMatrixClient
 {
     class Settings: public QSettings
     {
+        Q_OBJECT
         public:
 #if defined(_MSC_VER) && _MSC_VER < 1900
             // VS 2013 (and probably older) aren't friends with 'using' statements
