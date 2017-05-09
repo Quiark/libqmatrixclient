@@ -130,7 +130,7 @@ namespace QMatrixClient
              */
             void markMessagesAsRead(QString uptoEventId);
             /** Mark all messages in the room as read */
-            void markAllMessagesAsRead();
+            Q_INVOKABLE void markAllMessagesAsRead();
 
             Q_INVOKABLE bool hasUnreadMessages();
 

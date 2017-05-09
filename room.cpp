@@ -352,7 +352,7 @@ int Room::highlightCount() const
 
 void Room::resetHighlightCount()
 {
-if( d->highlightCount == 0 )
+    if( d->highlightCount == 0 )
         return;
     d->highlightCount = 0;
     emit highlightCountChanged(this);
