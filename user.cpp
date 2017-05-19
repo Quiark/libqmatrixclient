@@ -46,6 +46,7 @@ class User::Private
         bool avatarValid;
         bool avatarOngoingRequest;
         QVector<QPixmap> scaledAvatars;
+		QString bridged;
 
         void requestAvatar();
 };
@@ -81,6 +82,10 @@ QString User::displayname() const
     if( !d->name.isEmpty() )
         return d->name;
     return d->userId;
+}
+
+QString User::bridged() const {
+	return d->bridged;
 }
 
 QPixmap User::avatar(int width, int height)
@@ -140,6 +145,12 @@ void User::processEvent(Event* event)
         {
             const auto oldName = d->name;
             d->name = e->displayName();
+			QRegExp reSuffix(" \\((IRC|Gitter)\\)$");
+			int pos = reSuffix.indexIn(d->name);
+			if (pos != -1) {
+				d->bridged = reSuffix.cap(1);
+				d->name = d->name.left(pos);
+			}
             emit nameChanged(this, oldName);
         }
         if( d->avatarUrl != e->avatarUrl() )
