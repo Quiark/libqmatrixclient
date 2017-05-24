@@ -68,7 +68,8 @@ Connection::Connection(QUrl server, QObject* parent)
 }
 
 Connection::Connection()
-    : Connection(QUrl("https://matrix.org"))
+	//: Connection(QUrl("http://localhost:8200"))
+	: Connection(QUrl("https://matrix.org"))
 {
 }
 
@@ -98,6 +99,7 @@ void Connection::resolveServer(QString domain)
         auto record = dns->serviceRecords().front();
         d->data->setHost(record.target());
         d->data->setPort(record.port());
+		qDebug() << "Resolved to " << record.target() << ", " << record.port();
         emit resolved();
     });
 }
@@ -162,9 +164,19 @@ void Connection::sync(int timeout)
     if (d->syncJob)
         return;
 
-	const QString filter = "{\"room\": { \"timeline\": { \"limit\": 10 } } }";
-    auto job = d->syncJob =
-            callApi<SyncJob>(d->data->lastEvent(), filter, timeout);
+	//const QString filter = "{\"room\": { \"timeline\": { \"limit\": 10 } } }";
+	QJsonObject limitFilter;
+	limitFilter.insert("limit", QJsonValue(10));
+	QJsonObject roomFilter;
+	roomFilter.insert("timeline", limitFilter);
+	//QJsonObject presenceFilter;
+	//roomFilter.insert("timeline", limitFilter)
+	QJsonObject filter;
+	filter.insert("room", roomFilter);
+	filter.insert("presence", limitFilter);
+
+	auto job = d->syncJob =
+			callApi<SyncJob>(d->data->lastEvent(), QJsonDocument(filter).toJson(), timeout);
     connect( job, &SyncJob::success, [=] () {
         d->data->setLastEvent(job->nextBatch());
         for( auto& roomData: job->roomData() )
