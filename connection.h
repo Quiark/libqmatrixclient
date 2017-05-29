@@ -22,6 +22,8 @@
 #include <QtCore/QUrl>
 #include <QtCore/QSize>
 
+#include <functional>
+
 namespace QMatrixClient
 {
     class Room;
@@ -91,6 +93,20 @@ namespace QMatrixClient
                 return job;
             }
 
+            template <typename T = Room>
+            static void setRoomType()
+            {
+                createRoom =
+                    [](Connection* c, const QString& id) { return new T(c, id); };
+            }
+
+            template <typename T = User>
+            static void setUserType()
+            {
+                createUser =
+                    [](Connection* c, const QString& id) { return new T(id, c); };
+            }
+
         signals:
             void resolved();
             void connected();
@@ -124,18 +140,11 @@ namespace QMatrixClient
              */
             Room* provideRoom(const QString& roomId);
 
-            /**
-             * makes it possible for derived classes to have its own User class
-             */
-            virtual User* createUser(const QString& userId);
-
-            /**
-             * makes it possible for derived classes to have its own Room class
-             */
-            virtual Room* createRoom(const QString& roomId);
-
         private:
             class Private;
             Private* d;
+
+            static std::function<Room*(Connection*, const QString&)> createRoom;
+            static std::function<User*(Connection*, const QString&)> createUser;
     };
 }  // namespace QMatrixClient
